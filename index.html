@@ -21,6 +21,7 @@
 
   <button onclick="runSplit()">分離する</button>
   <button onclick="downloadOutput()">ダウンロード</button>
+　<button onclick="copyOutput()">コピー</button>
 
   <h3>出力結果</h3>
   <div id="output" class="output">ロード中…</div>
@@ -70,6 +71,22 @@
       };
       reader.readAsText(file, "UTF-8");
     });
+
+    function copyOutput() {
+    const content = document.getElementById("output").textContent;
+    if (!content.trim()) return;
+
+    navigator.clipboard.writeText(content)
+      .then(() => {
+        const btn = document.querySelector('button[onclick="copyOutput()"]');
+        const originalText = btn.textContent;
+        btn.textContent = "コピーしました！";
+        setTimeout(() => { btn.textContent = originalText; }, 1500);
+      })
+      .catch(err => {
+        alert("コピーに失敗しました: " + err);
+      });
+    }
 
     main();
   </script>
