@@ -21,23 +21,40 @@
 
   <button onclick="runSplit()">分離する</button>
   <button onclick="downloadOutput()">ダウンロード</button>
-　<button onclick="copyOutput()">コピー</button>
+  <button onclick="copyOutput()">コピー</button>
 
-    <div class="btn-group">
-        <a href="zip.html"><button>複数のフォルダー</button></a>
-    </div>
-
+  <div class="btn-group">
+    <a href="ab.html"><button>複数のフォルダー</button></a>
+  </div>
 
   <h3>出力結果</h3>
   <div id="output" class="output">ロード中…</div>
+
+  <!-- 初期状態は静止猫 -->
+  <img id="catImage" src="neko_still.jpg" alt="動く猫" width="100" height="100">
 
   <script>
     let pyodide = null;
 
     async function main() {
-      pyodide = await loadPyodide();
-      await pyodide.runPythonAsync(await (await fetch("splitter.py")).text());
-      document.getElementById("output").textContent = "準備完了";
+      try {
+        // 猫を止めておく
+        const catImg = document.getElementById("catImage");
+        catImg.src = "neko_still.jpg";
+
+        // Pyodideの読み込み
+        pyodide = await loadPyodide();
+
+        // splitter.py の読み込み
+        const script = await (await fetch("splitter.py")).text();
+        await pyodide.runPythonAsync(script);
+
+        // 出力と猫を更新
+        document.getElementById("output").textContent = "準備完了";
+        catImg.src = "neko_0.gif"; // アニメGIFに変更
+      } catch (error) {
+        document.getElementById("output").textContent = "エラー: " + error;
+      }
     }
 
     async function runSplit() {
@@ -47,10 +64,15 @@
         return;
       }
 
+      const catImg = document.getElementById("catImage");
+      catImg.src = "neko_still.jpg"; // 処理中は静止
+
       pyodide.globals.set("input_text", inputText);
       await pyodide.runPythonAsync("output_text = split_text(input_text)");
       const result = pyodide.globals.get("output_text");
       document.getElementById("output").textContent = result;
+
+      catImg.src = "neko_0.gif"; // 処理後にアニメに戻す
     }
 
     function downloadOutput() {
@@ -78,22 +100,22 @@
     });
 
     function copyOutput() {
-    const content = document.getElementById("output").textContent;
-    if (!content.trim()) return;
+      const content = document.getElementById("output").textContent;
+      if (!content.trim()) return;
 
-    navigator.clipboard.writeText(content)
-      .then(() => {
-        const btn = document.querySelector('button[onclick="copyOutput()"]');
-        const originalText = btn.textContent;
-        btn.textContent = "コピーしました！";
-        setTimeout(() => { btn.textContent = originalText; }, 1500);
-      })
-      .catch(err => {
-        alert("コピーに失敗しました: " + err);
-      });
+      navigator.clipboard.writeText(content)
+        .then(() => {
+          const btn = document.querySelector('button[onclick="copyOutput()"]');
+          const originalText = btn.textContent;
+          btn.textContent = "コピーしました！";
+          setTimeout(() => { btn.textContent = originalText; }, 1500);
+        })
+        .catch(err => {
+          alert("コピーに失敗しました: " + err);
+        });
     }
 
-    main();
+    main(); // 起動時に呼び出し
   </script>
 </body>
 </html>
