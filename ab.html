@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>セリフと地の文分離ツール（フォルダ対応）</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <style>
+    body { font-family: sans-serif; margin: 20px; }
+    textarea { width: 100%; height: 200px; }
+    .output { white-space: pre-wrap; background: #f9f9f9; padding: 10px; margin-top: 10px; }
+    button { margin: 5px; }
+  </style>
+</head>
+<body>
+  <h2>セリフと地の文分離ツール（フォルダ対応）</h2>
+
+  <input type="file" id="folderInput" webkitdirectory directory multiple>
+  <button onclick="processFolder()">フォルダの分離処理</button>
+  <button onclick="downloadZip()" id="zipButton" style="display:none;">分離結果をダウンロード</button>
+
+  <div class="output" id="log"></div>
+
+  <div class="btn-group">
+        <a href="index.html"><button>戻る</button></a>
+    </div>
+
+
+  <script>
+    const results = {};
+    const zip = new JSZip();
+
+    function splitText(text) {
+      const result = [];
+      let buffer = '';
+      let narrationBuffer = '';
+      const stack = [];
+      const quotePairs = {'「': '」', '『': '』'};
+      const openingQuotes = Object.keys(quotePairs);
+      const closingQuotes = Object.values(quotePairs);
+
+      for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        if (openingQuotes.includes(char)) {
+          if (narrationBuffer.trim()) {
+            result.push(`[地の文] ${narrationBuffer.trim()}`);
+            narrationBuffer = '';
+          }
+          buffer += char;
+          stack.push(quotePairs[char]);
+        } else if (closingQuotes.includes(char)) {
+          buffer += char;
+          if (stack.length && char === stack[stack.length - 1]) {
+            stack.pop();
+          }
+          if (stack.length === 0) {
+            result.push(`[セリフ] 不明：${buffer.trim()}`);
+            buffer = '';
+          }
+        } else {
+          if (stack.length) {
+            buffer += char;
+          } else {
+            narrationBuffer += char;
+          }
+        }
+      }
+
+      if (narrationBuffer.trim()) {
+        result.push(`[地の文] ${narrationBuffer.trim()}`);
+      }
+
+      return result.join('\n');
+    }
+
+    async function processFolder() {
+      const input = document.getElementById('folderInput');
+      const files = input.files;
+      const log = document.getElementById('log');
+      log.textContent = '';
+
+      if (!files.length) {
+        alert("フォルダを選択してください");
+        return;
+      }
+
+      zip.files = {}; // reset
+      for (const file of files) {
+        if (!file.name.endsWith('.txt')) continue;
+
+        const text = await file.text();
+        const output = splitText(text);
+        const newName = file.name.replace(/\.txt$/, '_separated.txt');
+        zip.file(newName, output);
+        results[newName] = output;
+
+        log.textContent += `✅ ${newName} を処理しました\n`;
+      }
+
+      if (Object.keys(results).length > 0) {
+        document.getElementById('zipButton').style.display = 'inline-block';
+        log.textContent += `\n📦 分離完了！「分離結果をダウンロード」ボタンで保存できます。`;
+      } else {
+        log.textContent += `⚠️ 対象ファイル（.txt）がありません。`;
+      }
+    }
+
+    function downloadZip() {
+      zip.generateAsync({ type: "blob" })
+        .then(blob => {
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(blob);
+          a.download = "separated_texts.zip";
+          a.click();
+        });
+    }
+  </script>
+</body>
+</html>
